@@ -1,0 +1,32 @@
+# --- Large data (not for git; 3.7 GB) ---------------------------------------
+datasets/
+
+# --- Build outputs ----------------------------------------------------------
+# compiled engine + GUI + onefile bundle
+releases/
+# C++ object files
+*.o
+
+# --- Generated feature databases & FLANN indexes ----------------------------
+db_*.yml
+*.bin
+
+# --- Packaged submission ----------------------------------------------------
+submission/
+*_DOAN.zip
+
+# --- Python / PyInstaller ---------------------------------------------------
+__pycache__/
+*.py[cod]
+build/
+dist/
+*.spec
+
+# --- Environments & tooling caches ------------------------------------------
+.venv/
+.direnv/
+.claude/
+
+# --- Editor / OS noise ------------------------------------------------------
+*.swp
+.DS_Store

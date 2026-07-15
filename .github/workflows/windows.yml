@@ -1,0 +1,62 @@
+name: build-windows
+
+# Builds the Windows engine (.exe) and the single-file GUI (.exe) on a real
+# Windows runner, then uploads them as an artifact. Trigger it from the Actions
+# tab ("Run workflow") or on a push to the default branch.
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- 1. Engine: MinGW-w64 + MSYS2 OpenCV, via the existing Makefile ------
+      - name: Set up MSYS2 / MinGW-w64
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            make
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-opencv
+
+      - name: Build engine (.exe) and gather its DLLs
+        shell: msys2 {0}
+        run: |
+          cd sources
+          make CXXFLAGS="-std=c++11 -Wall -Isrc $(pkg-config --cflags opencv4)" \
+               LDFLAGS="$(pkg-config --libs opencv4)"
+          cd ..
+          # Copy every MinGW DLL the engine needs next to it. build_bundle.py
+          # then embeds these into the GUI exe so it runs without OpenCV present.
+          ldd releases/image-retrieval.exe | awk '/mingw64/ {print $3}' \
+            | while read -r f; do cp -u "$f" releases/; done
+          ls -la releases
+
+      # --- 2. GUI: native Windows Python + PyInstaller ------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Bundle single-file GUI (.exe)
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller pillow
+          python sources/build_bundle.py
+
+      - name: Upload Windows binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-retrieval-windows
+          path: |
+            releases/image-retrieval.exe
+            releases/image-retrieval-gui.exe
+            releases/*.dll
+          if-no-files-found: error
